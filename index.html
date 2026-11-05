@@ -71,10 +71,13 @@
             <h1 class="text-4xl sm:text-5xl font-serif text-white tracking-wide shadow-black drop-shadow-md">Cena de <br>Navidad</h1>
         </div>
 
-        <!-- Discurso / Texto Emotivo -->
-        <div class="mb-8 text-center bg-black/20 border border-white/5 rounded-xl p-5 shadow-inner">
-            <p class="text-[13px] sm:text-sm text-stone-300 font-serif italic leading-relaxed">
-                "Hay tradiciones que son el corazón de un equipo y que no deberíamos dejar perder. Sabemos que últimamente ha costado encontrar el momento para reunirnos, hasta el punto de plantearnos si continuar con nuestro encuentro navideño. Sin embargo, creemos firmemente que las risas y los momentos que compartimos fuera del día a día son los que realmente nos unen. Este año queremos recuperar la ilusión y volver a llenar la mesa. Confiamos en que seremos muchos brindando juntos. ¿Contamos contigo?"
+        <!-- Fecha Confirmada -->
+        <div class="mb-8 text-center bg-[#cfa968]/15 border border-[#cfa968]/30 rounded-xl py-5 px-4 shadow-inner backdrop-blur-md">
+            <p class="text-xs text-[#cfa968] font-bold tracking-[0.3em] uppercase mb-2">
+                Fecha Confirmada
+            </p>
+            <p class="text-white text-2xl sm:text-3xl font-serif tracking-widest drop-shadow-md">
+                11 / 12 / 26
             </p>
         </div>
 
@@ -122,7 +125,7 @@
 
         <!-- Lista de Asistentes -->
         <div>
-            <h2 class="text-sm uppercase tracking-widest text-[#cfa968] mb-4 text-center font-semibold">Lista de Asistentes</h2>
+            <h2 id="listTitle" class="text-sm uppercase tracking-widest text-[#cfa968] mb-4 text-center font-semibold transition-colors duration-300">Lista de Asistentes</h2>
             <ul id="attendeeList" class="space-y-2 max-h-60 overflow-y-auto pr-1">
                 <!-- Los nombres se inyectarán aquí vía JavaScript -->
             </ul>
@@ -160,6 +163,7 @@
         const lastNameInput = document.getElementById('lastName');
         const totalCountDisplay = document.getElementById('totalCount');
         const attendeeListDisplay = document.getElementById('attendeeList');
+        const listTitle = document.getElementById('listTitle');
         const submitButton = form.querySelector('button');
 
         // Variables y Elementos del Modo Admin
@@ -265,6 +269,17 @@
             // El contador total solo suma los aprobados
             const approvedCount = attendees.filter(p => p.status === 'approved' || !p.status).length;
             totalCountDisplay.textContent = approvedCount;
+            
+            // Actualizar título de la lista según el modo
+            if (isAdminMode) {
+                listTitle.textContent = "Lista Completa (Visión Admin)";
+                listTitle.classList.remove('text-[#cfa968]');
+                listTitle.classList.add('text-red-400');
+            } else {
+                listTitle.textContent = "Lista de Asistentes";
+                listTitle.classList.remove('text-red-400');
+                listTitle.classList.add('text-[#cfa968]');
+            }
             
             attendeeListDisplay.innerHTML = '';
             
