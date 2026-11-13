@@ -289,8 +289,8 @@
 
             <!-- Contenido Desplegable de Ideas (Oculto por defecto) -->
             <div id="ideasCollapsibleContent" class="hidden px-5 pb-6 sm:px-6 border-t border-white/10 pt-4 animate-fade-in">
-                <p class="text-xs text-stone-300 mb-4 text-center leading-relaxed font-light">
-                    ¿Qué juegos o dinámicas te gustaría que hubiera en la cena? Escribe tu propuesta y la enviaremos en privado a los organizadores.
+                <p id="ideaIntroText" class="text-xs text-stone-300 mb-4 text-center leading-relaxed font-light">
+                    ¿Qué juegos o dinámicas te gustaría que hubiera en la cena? Escribe tu propuesta y la enviaremos en privado a los organizadores (máximo 1 por persona).
                 </p>
                 <form id="ideaForm" class="space-y-3">
                     <textarea id="ideaInput" rows="3" required placeholder="Ej: Kahoot del equipo, bingo musical, amigo invisible..." 
@@ -301,9 +301,10 @@
                         Enviar idea
                     </button>
                 </form>
-                <p id="ideaSuccessMsg" class="hidden text-center text-[#cfa968] text-xs mt-3 font-medium bg-[#cfa968]/10 border border-[#cfa968]/30 rounded-lg py-2 px-3">
-                    ¡Idea enviada con éxito! Gracias por tu sugerencia.
-                </p>
+                <div id="ideaSuccessMsg" class="hidden text-center bg-[#cfa968]/15 border border-[#cfa968]/40 rounded-xl p-4 mt-2 animate-fade-in">
+                    <p class="text-[#cfa968] font-serif text-base mb-1">¡Propuesta registrada!</p>
+                    <p class="text-stone-300 text-xs font-light">Ya hemos recibido tu sugerencia desde este dispositivo. ¡Muchas gracias por participar!</p>
+                </div>
             </div>
         </div>
 
@@ -402,7 +403,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, getDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, setDoc, onSnapshot, doc, getDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Configuración de Firebase
         const firebaseConfig = {
@@ -449,19 +450,38 @@
         const toggleIdeasBtn = document.getElementById('toggleIdeasBtn');
         const ideasCollapsibleContent = document.getElementById('ideasCollapsibleContent');
         const ideasChevron = document.getElementById('ideasChevron');
+        const ideaIntroText = document.getElementById('ideaIntroText');
         const ideaForm = document.getElementById('ideaForm');
         const ideaInput = document.getElementById('ideaInput');
         const submitIdeaBtn = document.getElementById('submitIdeaBtn');
         const ideaSuccessMsg = document.getElementById('ideaSuccessMsg');
+        const IDEA_STORAGE_KEY = 'cena_navidad_idea_enviada_2026';
+
+        // Función para bloquear el formulario de ideas si el dispositivo ya envió una
+        function lockIdeaForm() {
+            if (ideaIntroText) ideaIntroText.classList.add('hidden');
+            ideaForm.classList.add('hidden');
+            ideaSuccessMsg.classList.remove('hidden');
+        }
+
+        // Comprobación inmediata en la memoria del teléfono
+        if (localStorage.getItem(IDEA_STORAGE_KEY) === 'true') {
+            lockIdeaForm();
+        }
 
         toggleIdeasBtn.addEventListener('click', () => {
             ideasCollapsibleContent.classList.toggle('hidden');
             ideasChevron.classList.toggle('rotate-180');
         });
 
-        // Enviar una nueva idea de juego a Firebase
+        // Enviar una nueva idea de juego a Firebase (máximo 1 por dispositivo)
         ideaForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (localStorage.getItem(IDEA_STORAGE_KEY) === 'true') {
+                lockIdeaForm();
+                return;
+            }
+
             const text = ideaInput.value.trim();
             if (!text) return;
 
@@ -470,15 +490,24 @@
             submitIdeaBtn.disabled = true;
 
             try {
-                await addDoc(ideasRef, {
-                    text: text,
-                    timestamp: Date.now()
-                });
+                const uid = auth.currentUser ? auth.currentUser.uid : null;
+                if (uid) {
+                    // Usamos el ID del dispositivo como clave del documento para impedir duplicados en el servidor
+                    await setDoc(doc(db, 'ideas_juegos', uid), {
+                        text: text,
+                        timestamp: Date.now(),
+                        userId: uid
+                    });
+                } else {
+                    await addDoc(ideasRef, {
+                        text: text,
+                        timestamp: Date.now()
+                    });
+                }
+
+                localStorage.setItem(IDEA_STORAGE_KEY, 'true');
                 ideaForm.reset();
-                ideaSuccessMsg.classList.remove('hidden');
-                setTimeout(() => {
-                    ideaSuccessMsg.classList.add('hidden');
-                }, 4000);
+                lockIdeaForm();
             } catch (error) {
                 console.error("Error al enviar idea:", error);
             } finally {
@@ -866,6 +895,14 @@
         async function initAuth() {
             try {
                 await signInAnonymously(auth);
+                // Comprobar en Firebase si este dispositivo ya envió una idea anteriormente
+                if (auth.currentUser) {
+                    const myIdeaSnap = await getDoc(doc(db, 'ideas_juegos', auth.currentUser.uid));
+                    if (myIdeaSnap.exists()) {
+                        localStorage.setItem(IDEA_STORAGE_KEY, 'true');
+                        lockIdeaForm();
+                    }
+                }
             } catch (error) {
                 console.error("Aviso de autenticación:", error);
             } finally {
